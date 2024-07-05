@@ -1,38 +1,42 @@
-import requests
-import tkinter as tk
-from tkinter import messagebox
+import os
+from PIL import Image
+from io import BytesIO
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
+from rembg import remove
+from dotenv import load_dotenv
 
-# Define the function to fetch and display the data
-def fetch_data():
-    url = "https://covid.cdc.gov/covid-data-tracker/#maps_percent-covid-deaths"
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        global_data = data['totals']
-        
-        total_vaccinations = global_data['total_vaccine_doses_administered']
-        total_people_vaccinated = global_data['total_vaccine_persons_vaccinated']
-        total_people_fully_vaccinated = global_data['total_vaccine_persons_fully_vaccinated']
-        
-        # Create a new window to display the data
-        result_window = tk.Toplevel(root)
-        result_window.title("Global COVID-19 Vaccination Data")
-        
-        tk.Label(result_window, text="Global COVID-19 Vaccination Data", font=('Helvetica', 16, 'bold')).pack(pady=10)
-        tk.Label(result_window, text=f"Total Vaccinations: {total_vaccinations}").pack(pady=5)
-        tk.Label(result_window, text=f"Total People Vaccinated: {total_people_vaccinated}").pack(pady=5)
-        tk.Label(result_window, text=f"Total People Fully Vaccinated: {total_people_fully_vaccinated}").pack(pady=5)
-    else:
-        messagebox.showerror("Error", f"Failed to fetch data from the API. Status code: {response.status_code}")
+load_dotenv()
 
-# Create the main window
-root = tk.Tk()
-root.title("COVID-19 Data Fetcher")
+# Set your Telegram bot token as an environment variable
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "T7461438988:AAG7L5qHUCFiwIYGIYrv-Uo3rZL9BnA5plw")
 
-# Create a button to fetch the data
-fetch_button = tk.Button(root, text="Fetch Global COVID-19 Data", command=fetch_data)
-fetch_button.pack(pady=20)
 
-# Start the main event loop
-root.mainloop()
+def start(update: Updater, context: CallbackContext) -> None:
+    update.message.reply_text(
+        'Hi! Send me a photo and I will remove the background.')
+
+
+def handle_photo(update: Updater, context: CallbackContext) -> None:
+    photo = update.message.photo[-1].get_file()
+    photo.download('input.png')
+    with Image.open('input.png') as img:
+        output = remove(img)
+        output.save('output.png')
+
+    with open('output.png', 'rb') as output_file:
+        update.message.reply_photo(output_file)
+
+
+    def main():
+        updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
+        dispatcher = updater.dispatcher
+
+        dispatcher.add_handler(CommandHandler("start", start))
+        dispatcher.add_handler(MessageHandler(filters.photo, handle_photo))
+
+        updater.start_polling()
+        updater.idle()
+
+    if __name__ == '__main__':
+        main()
